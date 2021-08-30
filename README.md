@@ -1,6 +1,6 @@
 # Body Mass estimator for phocid shaped animals
 
-This repository contains a python script to clean, reconstruct and estimate body measures of phocids's 3D meshes.
+This repository contains a python script to clean, reconstruct and estimate phocid body measures based on 3D meshes.
 Supported formats are .ply and .obj.
 
 ### Usage
@@ -18,8 +18,8 @@ Example data is provided so you can do a test by runing:
 
 ``` python phocid_bme --in_path example_data```
 
-In case of not being specified, the reconstructions will be stored in "example_data/reconstructions" path.
+Unless specified otherwise, the reconstructions will be stored in "example_data/reconstructions" path.
 
 ## Important!
-- This script is **not** aimed to get a perfect reconstruction of the animal, but an aproximation to make a body mass estimation. Due to the use of Poisson Surface Reconstruction, the resulting mesh will lack definition for not existing areas in the model provided.
-- The values of "elasticity", "degree" and "subdivisions" are related to one another. Increasing the subdivitions without increasing the degree value will result in a mantle with more resolution but at the same time less restricted (more elastic). A degree value of 0 will nullify all elasticity restrictions ( vertices will not be restricted for its neighbors ). 
+- This script is **not** aimed to get a perfect reconstruction of the animal, but an aproximation to make a body mass estimation. Due to the use of Poisson Surface Reconstruction, the resulting mesh will lack definition for areas that are not present in the provided model.
+- The values of "elasticity", "degree" and "subdivisions" are related to one another. Increasing the subdivitions without increasing the degree value will result in a mantle with more resolution but at the same time less restriction (more elastic). A degree value of 0 will nullify all elasticity restrictions ( vertices will not be restricted for its neighbors ).

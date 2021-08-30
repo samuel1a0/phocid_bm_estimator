@@ -3,30 +3,42 @@ import os
 import trimesh as tr
 
 def remove_floor( mesh, floor, distance=.02, isol_tol=.1 ):
+    """ Remove the vertices from 'mesh' closer than 'distance' to
+    #   the floor.
+    #   params:
+    #       mesh:       Trimesh. Model to be processed.
+    #       floor:      Trimesh. Model representing the floor
+    #                   of the model.
+    #       distance:   Float. Maximum distance of a vertex to
+    #                   the floor to consider such vertex as part 
+    #                   of the real floor.
+    #       isol_tol:   Float. Tolerance value to be used in the
+    #                   Isolation process.
+     """
     pq = tr.proximity.ProximityQuery( floor )
     a = mesh.copy()
 
     d,idx = pq.vertex( a.vertices )
     mask = d>distance
     a = delete_vertices(a, mask=mask)
-#     mask = d<distance
-#     a.update_vertices(mask)
-
-#     b = isolate( a, trigger=isol_tol)
     b = isolate_reunite( a, trigger=isol_tol )
     return b
 
 def delete_vertices( mesh, mask, color=True ):
-    """ Elimina del mesh los vértices indicados según las mascara 'mask' """
+    """ Delete the vertices from the mesh according to the indicated mask.
+    #   params:
+    #       mesh:       Trimesh. Model to be processed.
+    #       mask:       Array (bool). Array indicating for each vertex if
+    #                   it should remain or be removed from the mesh.
+    #   return:
+    #       n_mesh:     Trimesh. Model with only the vertices specified
+    #                   in mask.
+    #
+    #   IMPORTANT: THIS PARTICULAR ALGORITHM (delete_vertices) WAS TAKEN DIRECTLY
+    #   FROM THE TRIMESH LIBRARY.
+    """
     idx = np.where( mask )
     new_coords = mesh.vertices[ idx[0] ]
-#     if color:
-#         if isinstance(mesh.visual, tr.visual.color.ColorVisuals):
-#             new_cols = mesh.visual.vertex_colors[ idx[0] ].copy()
-#         else:
-#             colors = mesh.visual.to_color()
-#             new_cols = colors.vertex_colors[ idx[0] ].copy()
-
 
     old2new = -( np.ones( len( mesh.vertices ) ) )
     old2new[ idx[0] ] = np.arange( len( idx[0] ) )
@@ -35,12 +47,22 @@ def delete_vertices( mesh, mask, color=True ):
     new_faces = new_faces[ ( new_faces != -1 ).all( axis = 1 ) ]
 
     n_mesh = tr.Trimesh( vertices=new_coords, faces=new_faces )
-#     if color:
-#         n_mesh.visual.vertex_colors = new_cols
-
     return n_mesh
 
 def isolate( mesh, trigger=.05, stop=50 ):
+    """ Filter the mesh to delete small isolated areas (bodies)
+    #   params:
+    #       mesh:       Trimesh. Model to be processed.
+    #       trigger:    Float (0~1). How much of the total
+    #                   count of faces should have a body to
+    #                   not be excluded.
+    #       stop:       Int. Maximum amount of bodies acceptableto
+    #                   process the model (the more amount ofbodies
+    #                   in the mesh, the slower the process become)
+    #   return:
+    #       mesh:       Trimesh. Filtered model containing all the
+    #                   bodies that fulfil the criteria. """
+
     if mesh.body_count>stop:
         print("too much bodyes!! skipping isolation...")
         return mesh
@@ -55,6 +77,19 @@ def isolate( mesh, trigger=.05, stop=50 ):
     return mesh
 
 def isolate_reunite( mesh, trigger, min_len=5 ):
+    """ Filter the mesh to delete isolated areas (bodies) smaller
+    #   than specified values.
+    #   params:
+    #       mesh:       Trimesh. Model to be processed.
+    #       trigger:    Float (0~1). How much of the total
+    #                   count of faces should have a body to
+    #                   not be excluded.
+    #       min_len:    Int. minimum amount of conected components
+    #                   that should have a body to not be excluded.
+    #   return:
+    #       mesh:       Trimesh. Filtered model containing all the
+    #                   bodies that fulfil the criteria. """
+
     t = trigger
     adjacency = mesh.face_adjacency
 
@@ -67,12 +102,9 @@ def isolate_reunite( mesh, trigger, min_len=5 ):
     keep = []
     level = np.ceil(1/trigger)-1
     i = 0
-#     trigger = (trigger * mesh.vertices.shape[0])
     trigger = (trigger * mesh.faces.shape[0])
 
     for c in components:
-#         v = np.unique( mesh.faces[ c ].flatten() )
-#         if v.shape[0] > trigger:
         if c.shape[0] > trigger:
             keep.append( c )
             i +=1
@@ -87,6 +119,17 @@ def isolate_reunite( mesh, trigger, min_len=5 ):
 
 
 def circ_mayor( mesh, just_value=True ):
+    """ Find a plausible maximum girth by slicing the reconstruction
+    #   of the mesh all allong its major axis at determined intervals.
+    #   params:
+    #       mesh:       Trimesh. Model to be sliced in order to found
+    #                   a plausible maximum girth.
+    #       just_value: Bool. Whether to return or not just the lenght
+    #                   of the major slice, or such lenght and the 
+    #                   corresponding slice.
+    #   return:
+    #       lenght:     Float. Length of the major slice found.
+    #       diametro:   Trimesh.Path2D. Major slice representation."""
     f = mesh.principal_inertia_vectors
 
     imin, imax = np.min(mesh.vertices),np.max(mesh.vertices)
@@ -108,6 +151,18 @@ def circ_mayor( mesh, just_value=True ):
     return diametro[0].length, diametro
 
 def get_cuasi_medial_axis( slices, return_3DView=False ):
+    """ Reconstructs a plausible medial axis based on the slices of
+    #   obtained from the mesh:
+    #   params:
+    #       slices:             array of Trimesh.path2D. All the slices obtained
+    #                           from the reconstructed mesh.
+    #       return_3DView:      whether to return or not a 3D view of the obtained
+    #                           axis.
+    #   return:
+    #       skeleton:           array of float. Coordinates composing the internal
+    #                           axis.
+    #       view_3D(optional):  Trimesh. 3D mesh of the slices used to compute the axis.
+    """
     skeleton = []
     view_3D = []
     for s in slices:
@@ -124,6 +179,12 @@ def get_cuasi_medial_axis( slices, return_3DView=False ):
     return skeleton
 
 def get_total_length( skeleton ):
+    """ Length computation based on the coordinates.
+    #   params:
+    #       skeleton:   array. Coordinates composing the axis.
+    #   return:
+    #       float:      Total lengh of the internal axis.
+    """    
     dist = skeleton[:-1] - skeleton[1:]
     dist = np.linalg.norm(dist, axis=1)
     return dist.sum()
