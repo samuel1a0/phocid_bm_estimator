@@ -19,10 +19,10 @@ DEFAULT_VALUES = {
 	"rec_path" : "example_data/reconstructions",
 	"pre_trained": 1,
 	"weights_path" : "net/weights/default.pt",
-	"degree" : 4,
+	"degree" : 2,
 	"precompute_n" : 1,
 	"step" : .05,
-	"elasticity" : .05,
+	"elasticity" : .95,
 	"subdivisions" : 6,
 	"max_iterations":500,
 	}
@@ -97,7 +97,7 @@ def floor_extraction( mesh, args ):
 				elasticity=args.elasticity, subdivisions=args.subdivisions )
 	m.set_mesh( mesh )
 	m.fit( max_iterations=700, log=False )
-	(mesh+m.manta).export( "{}/pre-{}.ply".format( args.rec_path, np.random.randint(1000) ))  ## quitar
+	# (mesh+m.manta).export( "{}/pre-{}.ply".format( args.rec_path, np.random.randint(1000) ))  ## quitar
 
 	mesh = remove_floor( mesh, m.manta, distance=d, isol_tol=.2 )
 

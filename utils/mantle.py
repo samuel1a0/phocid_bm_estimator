@@ -35,7 +35,7 @@ class Mantle(object):
 		self.neighbors = {}
 
 		self.step = step
-		self.punishment = (1-elasticity)*self.step #*self.subdivisions
+		self.punishment = (1-elasticity) #*self.step #*self.subdivisions
 
 		self.direction = [0, 0, 0]
 		self.displacement = []
@@ -219,6 +219,7 @@ class Mantle(object):
 		#	actual state
 		"""
 		actual_displacement = (self.displacement * self.freedom[:, np.newaxis])
+#		actual_displacement = np.array([x*y for x,y in zip(self.displacement, self.freedom)])  
 		actual_displacement = actual_displacement * self.direction
 		self.manta.vertices += actual_displacement
 		self.distance -= np.linalg.norm(actual_displacement, axis=1)
