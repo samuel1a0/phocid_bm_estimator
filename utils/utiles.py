@@ -19,6 +19,8 @@ def remove_floor( mesh, floor, distance=.02, isol_tol=.1 ):
     a = mesh.copy()
 
     d,idx = pq.vertex( a.vertices )
+    #distance = mesh.vertices.shape[0]/floor.vertices.shape[0]
+
     mask = d>distance
     a = delete_vertices(a, mask=mask)
     b = isolate_reunite( a, trigger=isol_tol )
