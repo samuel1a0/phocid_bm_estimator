@@ -9,8 +9,10 @@ from torch.autograd import Variable
 from torch import tensor
 from utils.cleaner_utils import *
 from utils.utiles import *
+from utils.segmentation import *
 from utils.mantle import *
 from net.net import Seq_Net
+from net.segmentation_net import *
 
 
 """ Constants: Values to be used in case the user don't specified them """
@@ -18,7 +20,8 @@ DEFAULT_VALUES = {
 	"in_path" : "example_data/",
 	"rec_path" : "example_data/reconstructions",
 	"pre_trained": 1,
-	"weights_path" : "net/weights/default.pt",
+	"weights_path" : "net/weights/model_radial_e1400.pt",
+	# "weights_path" : "net/weights/default.pt",
 	"degree" : 2,
 	"precompute_n" : 1,
 	"step" : .05,
@@ -105,7 +108,8 @@ def floor_extraction( mesh, args ):
 	return mesh
 
 
-def mesh_reconstruction( mesh, args ):
+# def mesh_reconstruction( mesh, args ):
+def mesh_reconstruction( points, normals, args ):
 	"""	Reconstruction using Poisson Surface Reconstruction algorithm
 	#	implemented in the Open3d library. Args expected for this  
 	#	method belongs to the Poisson Reconstruction.
@@ -126,8 +130,10 @@ def mesh_reconstruction( mesh, args ):
 	"""
 
 	pcd = o3d.geometry.PointCloud()
-	pcd.points = o3d.utility.Vector3dVector( np.array(mesh.vertices) )
-	pcd.normals = o3d.utility.Vector3dVector( np.array(mesh.vertex_normals) )
+	# pcd.points = o3d.utility.Vector3dVector( np.array(mesh.vertices) )
+	# pcd.normals = o3d.utility.Vector3dVector( np.array(mesh.vertex_normals) )
+	pcd.points = o3d.utility.Vector3dVector( points )
+	pcd.normals = o3d.utility.Vector3dVector( normals )
 	pmesh = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=6, width=0,
 	                                                                  scale=1.2, linear_fit=False)[0]
 	mesh = tr.Trimesh(vertices=np.array(pmesh.vertices), faces=np.array(pmesh.triangles))
@@ -147,7 +153,10 @@ def procces( args, files ):
 
 
 	# initializing temporal variablies 
-	net = Seq_Net( args.pre_trained, args.weights_path )
+	# net = Seq_Net( args.pre_trained, args.weights_path )
+	net = Seq_Net( args.pre_trained, "net/weights/default.pt" )
+	# seg = Segmenter( args.weights_path, args.n_points, args.device, args.r_ch)
+	seg = Segmenter( "net/weights/model_radial_e1400.pt", 1024, "cpu", 64)
 	volumenes = []
 	cfs = []
 	axis = []
@@ -176,10 +185,12 @@ def procces( args, files ):
 			if mesh.body_count <MAX_BODY_COUNT:
 				mesh = preprocess(mesh)
 
-				mesh = floor_extraction( mesh, args )
-
-				mesh = mesh_reconstruction( mesh, args )
-				mesh.fix_normals()
+				# mesh = seg.process( mesh )
+				# mesh.export( "{}/segmentation_{}".format( args.rec_path, f ))
+				# mesh = mesh_reconstruction( mesh, args )
+				points, normals, valid_idx = seg.segment( mesh )
+				mesh = mesh_reconstruction( points[valid_idx], normals[valid_idx], args )
+				# mesh.fix_normals()
 
 				mesh.export( "{}/{}".format( args.rec_path, f ))
 				mm = mesh.copy()

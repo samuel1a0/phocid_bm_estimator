@@ -190,3 +190,39 @@ def get_total_length( skeleton ):
     dist = skeleton[:-1] - skeleton[1:]
     dist = np.linalg.norm(dist, axis=1)
     return dist.sum()
+
+
+def get_model(path, name=None):
+    animales = os.listdir( path )
+    animales = [x for x in animales if (".obj" in x or ".ply" in x)]
+    if not name:
+        idx = np.random.randint(len(animales))
+        name = animales[idx]
+    else:
+        if name not in animales:
+            print("File '{}' not found in path".format( name ))
+            return
+    model = tr.load("{}/{}".format( path, name ))
+    return name, model
+
+def points_from_model( mesh, n=1024, return_normals=True ):
+    scale = mesh.scale
+    mesh.apply_scale(1/scale)
+    mesh.rezero()
+    points, fidx = tr.sample.sample_surface_even( mesh, int(n*1.3) )
+    normals = mesh.face_normals[fidx]
+    idx = np.arange(points.shape[0], dtype=np.int)
+    np.random.shuffle(idx)
+    idx = idx[:n]
+    mesh.apply_scale(scale)
+    if return_normals:
+        return points[idx], normals[idx], fidx[idx]
+    return points[idx], fidx[idx]
+
+def delete_vertex_from_faces( mesh, f_idx ):
+    faces = np.unique(f_idx, return_counts=False)
+    v_idx = np.unique(mesh.faces[ faces ].flatten(), return_counts=False)
+    mask = np.zeros(mesh.vertices.shape[0])
+    mask[v_idx] = 1
+    n_mesh = delete_vertices( mesh, mask )
+    return n_mesh
