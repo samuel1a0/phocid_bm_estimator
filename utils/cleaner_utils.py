@@ -310,16 +310,57 @@ class Cleaner:
 			plane = template
 		plane = self.plane_cut( mesh, plane, -n, reduction_steps, edge_size, offset=offset )
 		return mesh+plane
-    
-    
-	# def store_temp(self, mesh, path):
-	# 	# print(path)
-	# 	with open("{}/p.txt".format(path), 'w') as f:
-	# 		for item in mesh.vertices:
-	# 			f.write("{} {} {}\n".format(item[0],item[1], item[2]))
 
-	# 	vertex_normals, _ = calculate_normals(mesh)
-	# 	with open("{}/n.txt".format(path), 'w') as f:
-	# 		for item in vertex_normals:
-	# 			f.write("{} {} {}\n".format(item[0],item[1], item[2]))
-	# 	return
+
+	def add_plane_points( self, mesh, original_mesh):
+
+		# trf, o, n = self.find_plane_2(original_mesh)
+		trf, o, n = self.find_plane_2( mesh )
+		#         edge = mesh.outline()
+		# plane = tr.Trimesh( vertices=mesh.bounding_box_oriented.vertices,
+  #                           faces=mesh.bounding_box_oriented.faces,
+  #                           vertex_colors=mesh.bounding_box_oriented.visual.vertex_colors)
+
+		plane = tr.Trimesh( vertices=original_mesh.bounding_box_oriented.vertices,
+                                faces=original_mesh.bounding_box_oriented.faces,
+                                vertex_colors=original_mesh.bounding_box_oriented.visual.vertex_colors)
+		cfaces = []
+		for i, fn in enumerate(plane.face_normals ):
+			if ( np.allclose(-n, fn, .2) ):
+				cfaces.append(i)
+		indices = np.unique( plane.faces[cfaces].reshape(-1) )
+		mask = np.zeros( plane.vertices.shape[0], dtype=np.bool )
+		mask[indices] = True
+		plane = self.delete_vertices( plane, mask, isolate=False )
+
+		normals = np.tile( [n], mesh.vertices.shape[0]).reshape(-1,3)
+		hits,_,_ = plane.ray.intersects_location( mesh.vertices, -normals)
+		
+		print(normals.shape, hits.shape)
+		plane = tr.Trimesh( vertices=hits, vertex_normals=-normals)
+		return mesh+plane
+
+
+	def find_plane_2(self, mesh):
+		"""	Obtiene el plano que más se asemeja a representar el piso, y retorna la matriz transformación que posicionaría al mesh de
+			manera que el 'piso' quede coplanar a los ejes 'XY'. Tambien devuelve el plano (piso) como punto origen y normal
+			return:
+					trf: matriz transformación.
+					p_origen : Punto Origen del plano
+					p_normal : Normal del plano """
+
+		mesh.fix_normals()
+		edges = mesh.outline().vertices
+		box = mesh.bounding_box_oriented
+		distances = []
+		for o, n in zip( box.facets_origin, box.facets_normal ):
+			d = tr.points.point_plane_distance( edges, -n, o )
+			distances.append( d.sum() )
+
+
+		idx = np.argmin( distances )
+		o = box.facets_origin[ idx ]
+		n = box.facets_normal[ idx ]
+
+		trf = tr.geometry.plane_transform(origin=o, normal=n)
+		return trf, o, n

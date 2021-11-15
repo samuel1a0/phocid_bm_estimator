@@ -7,7 +7,7 @@ from utils.utiles import *
 from net.segmentation_net import *
 import torch
 
-WEIGHT_PATHS = "weights/model_radial_e1200.pt"
+WEIGHT_PATHS = "weights/model_radial_e3000.pt"
 
 
 class Segmenter( object ):
@@ -50,9 +50,15 @@ class Segmenter( object ):
 		# mesh = isolate_reunite ( mesh, .1 )
 		return mesh
 
-	def process( self, mesh ):
-		points, normals, preds = self.segment( mesh )
+	def process( self, mesh, scale=1 ):
+		final_points, final_normals = [], []
+		for i in range(scale):
+			points, normals, preds = self.segment( mesh )
+			final_points.extend( points[preds] )
+			final_normals.extend( normals[preds] )
+
+		n_mesh = tr.Trimesh(vertices=final_points, vertex_normals=final_normals)
 
 		# mesh.show()
 		# mesh = self.clean_mesh( mesh, fidx)
-		return mesh
+		return n_mesh

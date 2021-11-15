@@ -22,7 +22,8 @@ def remove_floor( mesh, floor, distance=.02, isol_tol=.1 ):
     #distance = mesh.vertices.shape[0]/floor.vertices.shape[0]
 
     mask = d>distance
-    a = delete_vertices(a, mask=mask)
+    # mask = d<distance
+    a = delete_vertices( a, mask=mask )
     b = isolate_reunite( a, trigger=isol_tol )
     return b
 

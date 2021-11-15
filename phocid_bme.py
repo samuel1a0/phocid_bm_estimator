@@ -1,3 +1,5 @@
+import matplotlib.pyplot as plt
+from mpl_toolkits import mplot3d
 import argparse
 import open3d as o3d
 import trimesh as tr
@@ -104,7 +106,7 @@ def floor_extraction( mesh, args ):
 
 	mesh = remove_floor( mesh, m.manta, distance=d, isol_tol=.2 )
 
-	mesh = c.add_plane( mesh, reduction_steps=1, edge_size=.04, offset=.1 )#edge_size=.04 )
+	# mesh = c.add_plane( mesh, reduction_steps=1, edge_size=.04, offset=.1 )#edge_size=.04 )
 	return mesh
 
 
@@ -133,10 +135,12 @@ def mesh_reconstruction( points, normals, args ):
 	# pcd.points = o3d.utility.Vector3dVector( np.array(mesh.vertices) )
 	# pcd.normals = o3d.utility.Vector3dVector( np.array(mesh.vertex_normals) )
 	pcd.points = o3d.utility.Vector3dVector( points )
+	normals = tr.points.util.unitize( np.mean( points, 0) - points )
 	pcd.normals = o3d.utility.Vector3dVector( normals )
 	pmesh = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=6, width=0,
 	                                                                  scale=1.2, linear_fit=False)[0]
 	mesh = tr.Trimesh(vertices=np.array(pmesh.vertices), faces=np.array(pmesh.triangles))
+	mesh.fix_normals()
 	return mesh
 
 
@@ -156,7 +160,7 @@ def procces( args, files ):
 	# net = Seq_Net( args.pre_trained, args.weights_path )
 	net = Seq_Net( args.pre_trained, "net/weights/default.pt" )
 	# seg = Segmenter( args.weights_path, args.n_points, args.device, args.r_ch)
-	seg = Segmenter( "net/weights/model_radial_e1400.pt", 1024, "cpu", 64)
+	seg = Segmenter( "net/weights/model_radial_e3000.pt", 1024, "cpu", 64)
 	volumenes = []
 	cfs = []
 	axis = []
@@ -184,13 +188,20 @@ def procces( args, files ):
 			# is available.
 			if mesh.body_count <MAX_BODY_COUNT:
 				mesh = preprocess(mesh)
+				scale = mesh.scale
+				mesh.apply_scale(1/scale)
+				mesh = floor_extraction(mesh, args)
+				# mesh.show()
 
-				# mesh = seg.process( mesh )
-				# mesh.export( "{}/segmentation_{}".format( args.rec_path, f ))
-				# mesh = mesh_reconstruction( mesh, args )
-				points, normals, valid_idx = seg.segment( mesh )
-				mesh = mesh_reconstruction( points[valid_idx], normals[valid_idx], args )
-				# mesh.fix_normals()
+				n_mesh = seg.process( mesh )
+
+				c = Cleaner()
+				mesh = c.add_plane_points( mesh, mesh )
+				# tr.points.plot_points(mesh.vertices)
+				
+
+				mesh = mesh_reconstruction( mesh.vertices, mesh.vertex_normals, args )
+				mesh.apply_scale( scale*mesh.scale )
 
 				mesh.export( "{}/{}".format( args.rec_path, f ))
 				mm = mesh.copy()
